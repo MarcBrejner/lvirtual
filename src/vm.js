@@ -13,8 +13,9 @@ try{
 }
 const tree = parser.parse(sourceCode);
 
-memory = new Int32Array(10);
+memory = new Int32Array(100);
 labels = {}
+constants = {}
 registers = {
     "$!":0, //PC
     "$?":0, //Bool
@@ -25,9 +26,7 @@ registers = {
 
 function get_reader_type(reader){
 
-    if(reader.childCount == 0){
-        return '_';
-    } else if(reader.child(0).type == 'assign'){
+    if(reader.child(0).type == 'assign'){
         return reader.child(0).child(0).type;
     } else {
         return reader.child(0).type;
@@ -47,12 +46,20 @@ function handle_reader(reader){
         case 'memory':
             break;//not done
         case 'constant':
-            break;//not done
+            if (reader_content in constants){
+                return constants[reader_content];
+            }else{
+                throw new Error("Constant ",reader_content," not found")
+            }
         case 'data':
             break;//not done
         case 'label':
-            break;//not done
-        case '_'://does not work with strings atm.
+            if (reader_content in labels){
+                return labels[reader_content];
+            }else{
+                throw new Error("Label ",reader_content," not found")
+            }
+        case 'number'://does not work with strings atm.
             return parseInt(reader_content);
     }
 }
@@ -71,6 +78,12 @@ function handle_binary(v_left,oper,v_right){
             return v_left || v_right ;
         case '&':
             return v_left && v_right;
+        case '>':
+            return v_left > v_right;
+        case '<':
+            return v_left < v_right;
+        case '=':
+            return v_left == v_right;
     }
     console.log(console.error("reeee"));
     throw new Error("Operator:",oper," unknown")
@@ -113,13 +126,13 @@ function handle_syscall(s){
 }
 
 function handle_statement(statement){
-    if(statement.childCount == 1){ //Syscall is the only statement which has only 1 child node
+    if(statement.childCount == 1 && statement.text == 'syscall'){
         handle_syscall(statement.child(0));
     }else{
         if(statement.child(1).type.toString() == ':='){
             handle_writer(statement);
         }else if(statement.child(1).type.toString() == '?='){
-            if(registers['$?']==99){//TODO: FIX 
+            if(registers['$?']){//TODO: FIX 
                 handle_writer(statement);
             }
         }
@@ -127,40 +140,59 @@ function handle_statement(statement){
 }
 
 
-function execute_statements(statements){
+function read_statements(statements){
     let instructions = new Array();
-    let lil_pc = 0;
+    let l_pc = 0;
     for(let c_i = 0; c_i < statements.childCount; c_i++){
-        var statement = statements.child(c_i);
+        let statement = statements.child(c_i);
         switch(statement.type){
             case 'label':
-                labels['test'] = lil_pc;
+                labels[statement.text] = l_pc;
                 break;
             case 'statement':
                 instructions.push(statement);
-                lil_pc++;
+                l_pc++;
                 break;
             case ';':
                 break;
             case ' ':
                 break;
         }
-    }   
-
-    while(true){ //step
-        console.log(JSON.stringify(registers, undefined, 2)); 
-        console.log(JSON.stringify(labels, undefined, 2))
-        handle_statement(instructions[registers['$!']])
-        registers['$!']++;
-        if(registers['$!'] >= instructions.length){
-            break;
-        }
     }
-    console.log(JSON.stringify(registers, undefined, 2)); 
-    console.log(JSON.stringify(labels, undefined, 2))
+    
+    return instructions;
 }
 
-function execute(tree){
+function handle_declaration(declaration){
+    let type = declaration.child(0).text;
+    let dec = declaration.child(1).text.split(' ');
+    // console.log(type)
+    // console.log(dec[0])
+    // console.log(dec[1])
+    if(type == 'const'){
+        constants[dec[0]] = dec[1];
+    }else if(type == 'data'){
+        data[dec[0]] = dec[1];
+    }
+}
+
+function read_declarations(declarations){
+    for(let c_i = 0; c_i < declarations.childCount; c_i++){
+        let declaration = declarations.child(c_i);
+        switch(declaration.type){
+            case 'declaration':
+                handle_declaration(declaration);
+                break;
+            case ';':
+                break;
+            case ' ':
+                break;
+        }
+    }               
+}
+
+
+function read_program(tree){
     if(tree.rootNode.toString().includes("ERROR")){
         console.log("Syntax Error, see parse below:");
         console.log(tree.rootNode.toString());
@@ -168,10 +200,39 @@ function execute(tree){
     }
     const declarations = tree.rootNode.childCount > 1 ? tree.rootNode.child(0) : [];
     const statements = tree.rootNode.childCount > 1 ? tree.rootNode.child(1) : tree.rootNode.child(0);
-
-    execute_statements(statements);
-
-    //
+    read_declarations(declarations)
+    let instructions = read_statements(statements);
+    return instructions;
 }
-execute(tree);
+
+function execute_all(instructions){
+    while(true){ //step
+        handle_statement(instructions[registers['$!']])
+        registers['$!']++;
+        if(registers['$!'] >= instructions.length){
+            break;
+        }
+    }
+}
+
+function execute_step(instructions){
+        if(registers['$!'] >= instructions.length){
+            console.log("EOF");
+            return;
+        }
+        handle_statement(instructions[registers['$!']])
+        registers['$!']++;
+        console.log("registers: ",JSON.stringify(registers, undefined, 2)); 
+        console.log("labels: ",JSON.stringify(labels, undefined, 2))
+
+}
+
+var instructions = read_program(tree);
+
+execute_step(instructions);
+
+
+//console.log(JSON.stringify(registers, undefined, 2)); 
+//console.log(JSON.stringify(labels, undefined, 2))
+//console.log(JSON.stringify(constants, undefined, 2))
 //console.log(tree.rootNode.toString())
