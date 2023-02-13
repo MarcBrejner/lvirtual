@@ -1,18 +1,20 @@
 const Parser = require('tree-sitter');
 const L = require('tree-sitter-l');
 const fs = require('fs');
+const http = require('http');
 const parser = new Parser();
 parser.setLanguage(L);
 
 
 try{
-    var sourceCode = fs.readFileSync('E:/Projects/lvirtual/test_files/example.l','utf8');
+    var sourceCode = fs.readFileSync('./test_files/example.l','utf8');
 } catch (err) {
     console.error(err);
 }
 const tree = parser.parse(sourceCode);
 
 memory = new Int32Array(10);
+labels = {}
 registers = {
     "$!":0, //PC
     "$?":0, //Bool
@@ -50,7 +52,7 @@ function handle_reader(reader){
             break;//not done
         case 'label':
             break;//not done
-        case '_':
+        case '_'://does not work with strings atm.
             return parseInt(reader_content);
     }
 }
@@ -66,23 +68,22 @@ function handle_binary(v_left,oper,v_right){
         case '/':
             return v_left / v_right;
         case '|':
-            return 0;
-            //return v_left | v_right;
+            return v_left || v_right ;
         case '&':
-            return 0;
-            //return v_left & v_right;
+            return v_left && v_right;
     }
     console.log(console.error("reeee"));
     throw new Error("Operator:",oper," unknown")
 }
 
-// function handle_unary(oper,v){
-//     switch(oper.text){
-//         case '-':
-//         case '&':
-//         case ''
-//     }
-// }
+function handle_unary(oper,v){
+    switch(oper.text){
+        case '-':
+            return -v;
+        case '&':
+            return 0; //Not implemented
+    }
+}
 
 function handle_expression(expression){
     var numOfChildren = expression.childCount;
@@ -118,20 +119,26 @@ function handle_statement(statement){
         if(statement.child(1).type.toString() == ':='){
             handle_writer(statement);
         }else if(statement.child(1).type.toString() == '?='){
-            if(registers['$?']){ 
+            if(registers['$?']==99){//TODO: FIX 
                 handle_writer(statement);
             }
         }
     }
 }
 
+
 function execute_statements(statements){
     let instructions = new Array();
+    let lil_pc = 0;
     for(let c_i = 0; c_i < statements.childCount; c_i++){
         var statement = statements.child(c_i);
         switch(statement.type){
+            case 'label':
+                labels['test'] = lil_pc;
+                break;
             case 'statement':
                 instructions.push(statement);
+                lil_pc++;
                 break;
             case ';':
                 break;
@@ -140,22 +147,31 @@ function execute_statements(statements){
         }
     }   
 
-    while(true){
+    while(true){ //step
+        console.log(JSON.stringify(registers, undefined, 2)); 
+        console.log(JSON.stringify(labels, undefined, 2))
         handle_statement(instructions[registers['$!']])
         registers['$!']++;
         if(registers['$!'] >= instructions.length){
             break;
         }
     }
+    console.log(JSON.stringify(registers, undefined, 2)); 
+    console.log(JSON.stringify(labels, undefined, 2))
 }
 
 function execute(tree){
+    if(tree.rootNode.toString().includes("ERROR")){
+        console.log("Syntax Error, see parse below:");
+        console.log(tree.rootNode.toString());
+        return;
+    }
     const declarations = tree.rootNode.childCount > 1 ? tree.rootNode.child(0) : [];
     const statements = tree.rootNode.childCount > 1 ? tree.rootNode.child(1) : tree.rootNode.child(0);
 
     execute_statements(statements);
 
-    console.log(JSON.stringify(registers, undefined, 2));
+    //
 }
-
 execute(tree);
+//console.log(tree.rootNode.toString())
