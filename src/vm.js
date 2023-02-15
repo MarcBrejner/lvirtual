@@ -13,7 +13,7 @@ try{
 }
 const tree = parser.parse(sourceCode);
 
-memory = new Int32Array(100);
+var pretty_printed;
 labels = {}
 constants = {}
 registers = {
@@ -227,10 +227,12 @@ function execute_step(instructions){
 
 }
 
-var instructions = read_program(tree);
 
-execute_step(instructions);
 
+
+//var instructions = read_program(tree);
+//execute_step(instructions);
+console.log(tree.rootNode.child(0).child(3).text);
 
 //console.log(JSON.stringify(registers, undefined, 2)); 
 //console.log(JSON.stringify(labels, undefined, 2))
