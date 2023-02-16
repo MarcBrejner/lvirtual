@@ -13,12 +13,40 @@ const tree = parser.parse(sourceCode);
 function p_source(tree){
     const declarations = tree.rootNode.childCount > 1 ? tree.rootNode.child(0) : [];
     const statements = tree.rootNode.childCount > 1 ? tree.rootNode.child(1) : tree.rootNode.child(0);
-
-    return p_statements(statements);
+    
+    return p_declarations(declarations)+p_statements(statements);
 }
 
 function p_declarations(declarations){
+    let p_declarations = "";
+    if(declarations == []){
+        return p_declarations;
+    }
+    for(let c_i = 0; c_i < declarations.childCount; c_i++){
+        let declaration = declarations.child(c_i);
+        switch(declaration.type){
+            case 'declaration':
+                p_declarations += p_declaration(declaration);
+                break;
+            case ';':
+                p_declarations += declaration.text;
+                break;
+            case '\n':
+                p_declarations += declaration.text;
+                break;
+        }
+    }
+    return p_declarations;     
+}
 
+function p_declaration(declaration){
+    let type = declaration.child(0).text;
+    let dec = declaration.child(1).text.split(' ');
+    if(type == 'const'){
+        return ".const "+dec[0]+" "+dec[1];
+    }else if(type == 'data'){
+        return ".data "+dec[0]+" "+dec[1];
+    }
 }
 
 function p_statements(statements){

@@ -1,4 +1,4 @@
 const @WRITE 4;
-data &HELLYEAH "Hej2";
+data &LOL "Hej";
 
-$x:=@WRITE;
+$x        :=            @WRITE;
