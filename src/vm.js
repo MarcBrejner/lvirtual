@@ -15,7 +15,8 @@ const tree = parser.parse(sourceCode);
 
 var pretty_printed;
 labels = {}
-constants = {}
+cs = {}
+data = {}
 registers = {
     "$!":0, //PC
     "$?":0, //Bool
@@ -26,7 +27,7 @@ registers = {
 
 function get_reader_type(reader){
 
-    if(reader.child(0).type == 'assign'){
+    if(reader.child(0).type == 'assign' || reader.child(0).type == 'datavar'){
         return reader.child(0).child(0).type;
     } else {
         return reader.child(0).type;
@@ -46,20 +47,24 @@ function handle_reader(reader){
         case 'memory':
             break;//not done
         case 'constant':
-            if (reader_content in constants){
-                return constants[reader_content];
+            if (reader_content in cs){
+                return parseInt(cs[reader_content]);
             }else{
                 throw new Error("Constant ",reader_content," not found")
             }
         case 'data':
-            break;//not done
+            if (reader_content in data){
+                return data[reader_content];
+            }else{
+                throw new Error("Data ",reader_content," not found")
+            }
         case 'label':
             if (reader_content in labels){
                 return labels[reader_content];
             }else{
                 throw new Error("Label ",reader_content," not found")
             }
-        case 'number'://does not work with strings atm.
+        case 'number':
             return parseInt(reader_content);
     }
 }
@@ -166,11 +171,8 @@ function read_statements(statements){
 function handle_declaration(declaration){
     let type = declaration.child(0).text;
     let dec = declaration.child(1).text.split(' ');
-    // console.log(type)
-    // console.log(dec[0])
-    // console.log(dec[1])
     if(type == 'const'){
-        constants[dec[0]] = dec[1];
+        cs[dec[0]] = dec[1];
     }else if(type == 'data'){
         data[dec[0]] = dec[1];
     }
@@ -213,6 +215,10 @@ function execute_all(instructions){
             break;
         }
     }
+    console.log("registers: ",JSON.stringify(registers, undefined, 2)); 
+    console.log("labels: ",JSON.stringify(labels, undefined, 2))
+    console.log("conts: ",JSON.stringify(cs, undefined, 2))
+    console.log("data: ",JSON.stringify(data, undefined, 2))
 }
 
 function execute_step(instructions){
@@ -229,12 +235,5 @@ function execute_step(instructions){
 
 
 
-
-//var instructions = read_program(tree);
-//execute_step(instructions);
-console.log(tree.rootNode.child(0).child(3).text);
-
-//console.log(JSON.stringify(registers, undefined, 2)); 
-//console.log(JSON.stringify(labels, undefined, 2))
-//console.log(JSON.stringify(constants, undefined, 2))
-//console.log(tree.rootNode.toString())
+var instructions = read_program(tree);
+execute_all(instructions);

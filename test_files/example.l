@@ -1,5 +1,4 @@
-$?:=    10;
-#T
-$x:=$x+1;
-$?:=$?-1;
-$!?=#T-1;
+const @WRITE 4;
+data &HELLYEAH "Hej2";
+
+$x:=@WRITE;
